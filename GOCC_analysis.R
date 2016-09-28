@@ -8,9 +8,9 @@
 ###############################################################################
 
 library(dplyr)
-library(openxlsx)
 
-# First prepare uniprot queary table:
+
+# First prepare uniprot query table:
 
 
 specMilldata <-read.table(file = "//bennett/seqdb/UniProt.human.20141017.RNFISnr.150contams",
