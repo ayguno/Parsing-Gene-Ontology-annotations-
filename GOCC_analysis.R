@@ -58,7 +58,7 @@ setwd("Z:/LabMembers/Ozan/MitoProject")
 Uniprot <- read.delim(file = "uniprot-HUMAN-09272016.tab", stringsAsFactors = FALSE)
 
 
-# This gives a table of 31 annotations for 14384 Unique Uniprot IDs
+# This gives a table of 31 annotations for 22684 Unique Uniprot IDs
 
 # Add identifier "Uniprot" in front of the column names of this table.
 
