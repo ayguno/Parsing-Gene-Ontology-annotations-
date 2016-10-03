@@ -5,6 +5,9 @@
 # Purpose : to provide GOCC and other annotations to desired protein/site specific
 # data tables in a systematic manner.
 #
+# Update: 10/03/20116
+#         we will update the Uniprot table by using all available entries from UNIPROT
+#         and perform two types of merging 1: by UNIPROT entry 2: by Gene Name
 ###############################################################################
 
 library(dplyr)
@@ -12,37 +15,28 @@ library(dplyr)
 
 # First prepare uniprot query table:
 
+# This ID table is downloaded from UNIPROT FTP site on 10/03/2016:
+# FTP site : ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/idmapping/by_organism/
 
-specMilldata <-read.table(file = "//bennett/seqdb/UniProt.human.20141017.RNFISnr.150contams",
+
+ftpdata <-read.table(file = "HUMAN_9606_idmapping.dat",
                           ,sep = "\t", stringsAsFactors = FALSE)
-x<-grepl(">",specMilldata[,1])
 
-specMillUniprot <- data.frame(specMilldata[x,])
+# Over 4 million entries, the first column is Uniprot IDS
 
-x <- grepl("HUMAN",specMillUniprot[,1]) 
+UniprotIDs <- data.frame(unique(ftpdata[,1]))
+# contains 133996 unique uniprot IDs
 
-specMillUniprot <-as.character(specMillUniprot[x,])
-
-x<-regexpr("\\|",specMillUniprot)
-
-specMillUniprot <- substr(specMillUniprot,(x+1),length(specMillUniprot)) 
-
-x<-regexpr("\\|",specMillUniprot)
-
-specMillUniprot <- unique(substr(specMillUniprot,1,x-1)) 
-
-
-# We have 32976 unique, Human uniprot IDs from Spectrum Mill database
-specMillUniprot <- data.frame(UniprotHumanSpectrumMill=specMillUniprot)
 
 # Wrote this into a csv file to use in an Uniprot search
-write.csv(file = "UniprotHumanSpectrumMill.csv", specMillUniprot )
+write.table(file = "UniprotHuman10032016.txt", UniprotIDs, row.names = F, quote = F,col.names = F )
 
 
-# Use this IDs to perform a Uniprot search and download the matched annotations:
+# Use this ID file ("UniprotHuman10032016.txt") to perform a Uniprot search and download the matched annotations:
 # This proces takes quite some time.
 
-
+# This query matched 109961 Human entries from Uniprot(Reviewed + Unreviewed)
+# This table is downloaded as : uniprot-yourlist%3AM2016100314483A1C7ED25EE8374758DF3FD545FD34EB804.tab 
 
 ######################################
 # Start here to continue the work
@@ -50,21 +44,33 @@ write.csv(file = "UniprotHumanSpectrumMill.csv", specMillUniprot )
 
 
 
-# Read the downloaded table 
+# Read the downloaded Uniprot table 
 
 setwd("Z:/LabMembers/Ozan/MitoProject")
 
 
-Uniprot <- read.delim(file = "uniprot-HUMAN-09272016.tab", stringsAsFactors = FALSE)
+# We have to delete the FUNCTION column otherwise file is not read properly.
 
+Uniprot <- read.delim(file = "uniprot-yourlist%3AM2016100314483A1C7ED25EE8374758DF3FD545FD34EB804.tab", stringsAsFactors = FALSE, header = TRUE)
+#  109961 entries are sucesfully read as we expected.
 
-# This gives a table of 31 annotations for 22684 Unique Uniprot IDs
+# This gives a table of 31 annotations for 109961 Unique Uniprot IDs
 
 # Add identifier "Uniprot" in front of the column names of this table.
 
 colnames(Uniprot) <-paste("UNIPROT",colnames(Uniprot), sep = "_")
 Mitochondrial_Evidence_UNIPROT=apply(apply(Uniprot,2, grepl,pattern="mitoch|Mitoch|MITOCH"),1,any) 
 Uniprot$Mitochondrial_Evidence_UNIPROT <- Mitochondrial_Evidence_UNIPROT
+
+# Compile the gene name column
+
+Uniprot$UNIPROT_Gene.name <- sapply(Uniprot$UNIPROT_Gene.names,function(x){
+        temp<-regexpr(" ",x)
+        return(substr(x,start = 1, stop = temp-1))
+})
+
+w <- which(Uniprot$UNIPROT_Gene.name == "")
+Uniprot$UNIPROT_Gene.name[w] <- Uniprot$UNIPROT_Gene.names[w] 
 
 
 # Read the next reference table, Calvo's list:
@@ -127,11 +133,34 @@ for( i in seq_along(colnames(paths))){
         gene_protein <- unique(sourcedata %>% select(accession_number, geneSymbol))
         colnames(gene_protein) <- paste(colnames(paths)[i],colnames(gene_protein), sep = "_")
         
-        # merge Uniprot evidence
+        w<-which(gene_protein[,1]== "")
+        if(length(w) >0) {gene_protein[w,1] <- "Not Available"}
+        w<-which(gene_protein[,2]== "")
+        if(length(w) >0) {gene_protein[w,2] <- "Not Available"}
+        
+        # merge Uniprot evidence by Gene Name
+        
+        temp <- merge(gene_protein,Uniprot, by.x = paste(colnames(paths)[i],"geneSymbol",sep = "_"), 
+                              by.y = "UNIPROT_Gene.name", all.x = TRUE, all.y = FALSE, sort = FALSE)
+        
+        # add MERGED_BY_GENE_NAME suffix to these columns
+        
+        colnames(temp) <-paste(colnames(temp),"_MERGED_BY_GENE_NAME",sep = "")
+        
+        temp <- subset(temp, !duplicated(temp[,1]))
+        
+        gene_protein <- merge(gene_protein,temp, by.x =paste(colnames(paths)[i],
+                                                             "geneSymbol",sep = "_"),
+                              by.y = colnames(temp)[1],
+                              all.x = TRUE, all.y = FALSE, sort = FALSE)
+
+        
+        # merge Uniprot evidence by Uniprot ID
         
         gene_protein <- merge(gene_protein,Uniprot, by.x = paste(colnames(paths)[i],"accession_number",sep = "_"), 
                               by.y = "UNIPROT_Entry", all.x = TRUE, all.y = FALSE, sort = FALSE)
-       
+        
+        
         # merge Calvo evidence
         
         gene_protein <- merge(gene_protein,Calvo, by.x = paste(colnames(paths)[i],"geneSymbol",sep = "_"), 
