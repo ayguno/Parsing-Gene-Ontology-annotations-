@@ -8,6 +8,11 @@
 # Update: 10/03/20116
 #         we will update the Uniprot table by using all available entries from UNIPROT
 #         and perform two types of merging 1: by UNIPROT entry 2: by Gene Name
+#
+# Update: 01/11/2017
+#         we will include two more cases in the final table, such that the queries 
+#         associated with the uniprot table's GOCC columns seperately evaluated 
+#         and included in the final report.
 ###############################################################################
 
 library(dplyr)
@@ -61,6 +66,10 @@ Uniprot <- read.delim(file = "uniprot-yourlist%3AM2016100314483A1C7ED25EE8374758
 colnames(Uniprot) <-paste("UNIPROT",colnames(Uniprot), sep = "_")
 Mitochondrial_Evidence_UNIPROT=apply(apply(Uniprot,2, grepl,pattern="mitoch|Mitoch|MITOCH"),1,any) 
 Uniprot$Mitochondrial_Evidence_UNIPROT <- Mitochondrial_Evidence_UNIPROT
+
+# Also perform the query just based on the Uniprot GOCC column. Annotate this seperately:
+Mitochondrial_Evidence_ONLY_FROM_GOCC_UNIPROT=sapply(sapply(Uniprot$UNIPROT_Gene.ontology..cellular.component., grepl,pattern="mitoch|Mitoch|MITOCH"),any)
+Uniprot$Mitochondrial_Evidence_ONLY_FROM_GOCC_UNIPROT <- Mitochondrial_Evidence_ONLY_FROM_GOCC_UNIPROT
 
 # Compile the gene name column
 
@@ -195,10 +204,10 @@ for( i in seq_along(colnames(paths))){
         
         
         setwd(dirname(as.character(paths[1,i])))
-        if(!exists("GOCC_annotation")){dir.create("GOCC_annotation")}
+        if(!exists("GOCC_annotation_01_11_2017")){dir.create("GOCC_annotation_01_11_2017")}
         
-        write.table(final_Evidence,file = paste("./GOCC_annotation/",basename(as.character(paths[1,i])), "_Annotation_Only.txt", sep = ""), sep = "\t", row.names = FALSE)
-        write.table(glued,file = paste("./GOCC_annotation/",basename(as.character(paths[1,i])), "_Annotation_data_glued.txt", sep = ""), sep = "\t", row.names = FALSE)
+        write.table(final_Evidence,file = paste("./GOCC_annotation_01_11_2017/",basename(as.character(paths[1,i])), "_Annotation_Only.txt", sep = ""), sep = "\t", row.names = FALSE)
+        write.table(glued,file = paste("./GOCC_annotation_01_11_2017/",basename(as.character(paths[1,i])), "_Annotation_data_glued.txt", sep = ""), sep = "\t", row.names = FALSE)
         
         print(paste("Completed: ", dirname(as.character(paths[1,i]))))
         print(paste("Completed: ", colnames(paths)[i]))
